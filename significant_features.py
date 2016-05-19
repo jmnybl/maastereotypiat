@@ -30,23 +30,9 @@ def vocabulary(f):
     return vocabulary,country_codes
 
 
-def country_or_citizen(line):
-    """ return 1 if country and -1 if citizen """
-    if line[conllutil.CPOS]==u"ADJ" or line[conllutil.CPOS]==u"PROPN":
-        return 1
-    if u"Derivation=Lainen" in line[conllutil.FEAT]:
-        return -1
-    if u"lainen" in line[conllutil.LEMMA] or u"laiset" in line[conllutil.LEMMA] or u"läinen" in line[conllutil.LEMMA] or u"läiset" in line[conllutil.LEMMA]:
-        return -1
-    return 1
-
-#def decide_label(sent,country):
-#    pass
-
-
 labels=[]
 
-def data_iterator(f,country,vocabulary,max_count=100000):
+def data_iterator(f,country,vocabulary,max_count=500000):
     global labels
 
     comment_line=u"# nationality: "+country
@@ -59,7 +45,7 @@ def data_iterator(f,country,vocabulary,max_count=100000):
             labels.append(0)
         words=[]
         for line in sent:
-            if line[conllutil.FORM] in vocabulary or line[conllutil.LEMMA].replace(u"#",u"") in vocabulary:# or line[conllutil.CPOS]!=u"ADJ":
+            if line[conllutil.FORM] in vocabulary or line[conllutil.LEMMA].replace(u"#",u"") in vocabulary or line[conllutil.CPOS]!=u"ADJ":
                 continue # remove nationality words
             else:
                 words.append(line[conllutil.LEMMA])
