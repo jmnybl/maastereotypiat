@@ -4,30 +4,14 @@ import codecs
 import sklearn.feature_extraction
 from sklearn.svm import LinearSVC
 import sys
-import conllutil
+import conllutil3 as cu
 import gzip
 import numpy as np
 import re
+from filter_pb import read_vocab
 
 """ One versus all svm classification with heavy regularization to find most significant features. """
 
-def vocabulary(f):
-
-    vocabulary=set()
-    country_codes=dict()
-
-    for line in f:
-        line=line.strip()
-        code,words=line.split(u"\t")
-        words=words.split(u",")
-        for w in words:
-            if w.endswith(u"nen"):
-                vocabulary.add(re.sub('nen$', 'set', w))
-                country_codes[re.sub('nen$', 'set', w)]=code
-            vocabulary.add(w)
-            country_codes[w]=code
-
-    return vocabulary,country_codes
 
 
 labels=[]
@@ -35,24 +19,24 @@ labels=[]
 def data_iterator(f,country,vocabulary,max_count=500000):
     global labels
 
-    comment_line=u"# nationality: "+country
+    comment_line="# nationality: "+country
 
     counter=0
-    for comm,sent in conllutil.read_conllu(f):
+    for comm,sent in cu.read_conllu(f):
         if comment_line in comm: # this is positive example
             labels.append(1)
         else:
             labels.append(0)
         words=[]
         for line in sent:
-            if line[conllutil.FORM] in vocabulary or line[conllutil.LEMMA].replace(u"#",u"") in vocabulary or line[conllutil.CPOS]!=u"ADJ":
+            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary or line[cu.CPOS]!="ADJ":
                 continue # remove nationality words
             else:
-                words.append(line[conllutil.LEMMA])
+                words.append(line[cu.LEMMA])
 
         if not words: # no adjectives in this sentence
-            words.append(u"EMPTY")
-        stext=u" ".join(words)
+            words.append("EMPTY")
+        stext=" ".join(words)
         yield stext
         counter+=1
         if max_count!=0 and counter==max_count:
@@ -65,10 +49,10 @@ def tokenizer(txt):
 
 country_code=unicode(sys.argv[1])
 
-with codecs.open(u"nations_ready.txt",u"rt",u"utf-8") as f:
-    vocab,country_codes=vocabulary(f)
+with open("nations_ready.txt","rt",encoding="utf-8") as f:
+    vocab,country_codes=read_vocabulary(f)
 
-iterator=data_iterator(codecs.getreader(u"utf-8")(sys.stdin),country_code,vocab)
+iterator=data_iterator(sys.stdin,country_code,vocab)
 
 #vectorizer=sklearn.feature_extraction.text.TfidfVectorizer(tokenizer=tokenizer,use_idf=True) #,max_df=0.9
 
@@ -79,14 +63,14 @@ classifier=LinearSVC(penalty="l1",C=0.1,dual=False)
 classifier.fit(d,labels)
 
 
-print "Non-zero features:",np.count_nonzero(classifier.coef_)
+print("Non-zero features:",np.count_nonzero(classifier.coef_),sep=" ")
 f_names=vectorizer.get_feature_names()
 sorted_by_weight=sorted(zip(classifier.coef_[0],f_names))
 for f_weight,f_name in sorted_by_weight[-30:]:
-    print f_name, f_weight
-print "------------------------"
+    print(f_name, f_weight, sep="\t")
+print("------------------------")
 for f_weight,f_name in sorted_by_weight[:30]:
-    print f_name, f_weight
+    print(f_name, f_weight, sep="\t")
 
 
 

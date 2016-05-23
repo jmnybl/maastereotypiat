@@ -1,18 +1,18 @@
 import codecs
 import sys
 import re
-import conllutil
+import conllutil3 as cu
 
 code=sys.argv[1]
-comment=u"# nationality: "+unicode(code)
-print >> sys.stderr,comment
+comment="# nationality: "+code
+print(comment, file=sys.stderr)
 
 counter=1
-for comm,sent in conllutil.read_conllu(codecs.getreader(u"utf-8")(sys.stdin)):
+for comm,sent in cu.read_conllu(sys.stdin):
 
     if comment in comm:
 
-        conllutil.plain_print(sys.stdout,comm,sent)
+        cu.plain_print(sys.stdout,comm,sent)
         counter+=1
 
-print >> sys.stderr,counter
+print("sentences=",counter,sep="",file=sys.stderr)
