@@ -8,7 +8,7 @@ import conllutil3 as cu
 import gzip
 import numpy as np
 import re
-from filter_pb import read_vocab
+from filter_pb import read_vocabulary
 
 """ One versus all svm classification with heavy regularization to find most significant features. """
 
@@ -47,7 +47,7 @@ def tokenizer(txt):
     return txt.split()
 
 
-country_code=unicode(sys.argv[1])
+country_code=sys.argv[1]
 
 with open("nations_ready.txt","rt",encoding="utf-8") as f:
     vocab,country_codes=read_vocabulary(f)
