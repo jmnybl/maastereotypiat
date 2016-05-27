@@ -3,6 +3,7 @@
 import codecs
 import sklearn.feature_extraction
 from sklearn.svm import LinearSVC
+from sklearn.metrics import classification_report
 import sys
 import conllutil3 as cu
 import gzip
@@ -12,24 +13,31 @@ from filter_pb import read_vocabulary
 
 """ One versus all svm classification with heavy regularization to find most significant features. """
 
-
+dev_labels=[]
+dev_texts=[]
 
 labels=[]
 
 def data_iterator(f,country,vocabulary,max_count=500000):
-    global labels
+    global labels,dev_labels,dev_texts
 
     comment_line="# nationality: "+country
 
     counter=0
     for comm,sent in cu.read_conllu(f):
         if comment_line in comm: # this is positive example
-            labels.append(1)
+            if counter%1000==0:
+                dev_labels.append(1)
+            else:
+                labels.append(1)
         else:
-            labels.append(0)
+            if counter%1000==0:
+                dev_labels.append(0)
+            else:
+                labels.append(0)
         words=[]
         for line in sent:
-            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary or line[cu.CPOS]!="ADJ":
+            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary:# or line[cu.CPOS]!="ADJ":
                 continue # remove nationality words
             else:
                 words.append(line[cu.LEMMA])
@@ -37,7 +45,10 @@ def data_iterator(f,country,vocabulary,max_count=500000):
         if not words: # no adjectives in this sentence
             words.append("EMPTY")
         stext=" ".join(words)
-        yield stext
+        if counter%1000==0:
+            dev_texts.append(stext)
+        else:
+            yield stext
         counter+=1
         if max_count!=0 and counter==max_count:
             break
@@ -48,29 +59,38 @@ def tokenizer(txt):
 
 
 country_code=sys.argv[1]
+try:
+    cutoff=int(sys.argv[2])
+except:
+    cutoff=5
+
+print("Country code:", country_code, "Cutoff value:", cutoff, sep=" ")
 
 with open("nations_ready.txt","rt",encoding="utf-8") as f:
     vocab,country_codes=read_vocabulary(f)
 
-iterator=data_iterator(sys.stdin,country_code,vocab)
+iterator=data_iterator(sys.stdin,country_code,vocab,max_count=0)
 
 #vectorizer=sklearn.feature_extraction.text.TfidfVectorizer(tokenizer=tokenizer,use_idf=True) #,max_df=0.9
 
-vectorizer=sklearn.feature_extraction.text.CountVectorizer(tokenizer=tokenizer) #,max_df=0.9,min_df=0.01
+vectorizer=sklearn.feature_extraction.text.CountVectorizer(tokenizer=tokenizer,min_df=cutoff) #,max_df=0.9,min_df=0.01
 d=vectorizer.fit_transform(iterator)
 
-classifier=LinearSVC(penalty="l1",C=0.1,dual=False)
+classifier=LinearSVC(penalty="l1",C=0.1,dual=False)#,class_weight="balanced")
 classifier.fit(d,labels)
 
+print(len(dev_labels),dev_labels.count(0),dev_labels.count(1),sep=" ")
+print(classification_report(classifier.predict(vectorizer.transform(dev_texts)),dev_labels))
 
 print("Non-zero features:",np.count_nonzero(classifier.coef_),sep=" ")
 f_names=vectorizer.get_feature_names()
 sorted_by_weight=sorted(zip(classifier.coef_[0],f_names))
-for f_weight,f_name in sorted_by_weight[-30:]:
+#for f_weight,f_name in sorted_by_weight[-30:]:
+for f_weight,f_name in sorted_by_weight:
     print(f_name, f_weight, sep="\t")
-print("------------------------")
-for f_weight,f_name in sorted_by_weight[:30]:
-    print(f_name, f_weight, sep="\t")
+#print("------------------------")
+#for f_weight,f_name in sorted_by_weight[:30]:
+#    print(f_name, f_weight, sep="\t")
 
 
 
