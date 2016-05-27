@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 import codecs
 import sklearn.feature_extraction
 from sklearn.svm import LinearSVC
