@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Nationalities and stereotypes</title>
+  <link rel="stylesheet" href="jquery-jvectormap.css" type="text/css" media="screen"/>
+  <script src="jquery.min.js"></script>
+  <script src="jquery.jvectormap.min.js"></script>
+  <script src="jquery-jvectormap-world-mill.js"></script>
+  <script type="text/javascript" src="counts_pb.json"></script>
+  <script type="text/javascript" src="counts_s24.json"></script>
+  <script type="text/javascript" src="features.json"></script>
+</head>
+<body>
+
+  <h1>How much are different regions discussed?</h1>
+  Here we take the raw number of hits (note: white regions are undefined for one reason or another) and squeeze
+  them through a logarithm. Note how there is litte to no difference between S24 and the Internet Parsebank
+  data.
+  <h2>S24 counts</h2>
+  <div id="world-map-s24" style="width: 800px; height: 600px"></div>
+  <h2>PB counts</h2>
+  <div id="world-map-pb" style="width: 800px; height: 600px"></div>
+
+  <h1>Most distinguishing terms</h1>
+
+  One way to find what is distinctive to the various regions and
+  nationalities is to train a classifier which will distinguish
+  sentences about a given nationality/country from sentences about other
+  nationalities/countries. We can then inspect the highest ranking features.
+
+  <h2>S24 all words nations plus countries</h2>
+  <div id="keywords-s24" style="width: 800px; height: 600px"></div>  
+
+  <h2>S24 nations but not countries, only adjectives</h2>
+  <div id="citizenadj-s24" style="width: 800px; height: 600px"></div>  
+
+  <h1>Sentiment adjectives and verbs</h1>
+
+  There exist many sentiment word lists, ie list of words with annotated polarity. We took
+  one of them and repeated the above experiment with only words which are on the list. The
+  choice of the list turns out to be quite unfortunate (ie list is lousy).
+   
+  <h2>S24 sentiment adjectives and verbs, nations but not countries</h2>
+  <div id="sentadjcitizen-s24" style="width: 800px; height: 600px"></div>  
+
+  And since we have the sentiment value for each word on the list, we can
+  aggregate them and come up with the following maps:
+
+  <h2>S24 sentiment for nations but not countries (0 negative, 1 positive)</h2>
+  <div id="sentadjcitizen-s24-sentiment" style="width: 800px; height: 600px"></div>  
+
+  <script>
+    var data_pb = JSON.parse(counts_pb);
+    var data_s24 = JSON.parse(counts_s24);
+    var data_features = JSON.parse(features);
+
+   /* counts */
+    
+    $('#world-map-pb').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_pb,
+    scale: ['#FFE6E6', '#4D0000'],
+    normalizeFunction: Math.log
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_pb[code] || 0).toLocaleString()+')');
+    }
+    });
+
+
+    $('#world-map-s24').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_s24,
+    scale: ['#FFE6E6', '#4D0000'],
+    normalizeFunction: Math.log
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_s24[code] || 0).toLocaleString()+')');
+    }
+    });
+
+
+   /* keywords all */
+
+    $('#keywords-s24').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_features["s24_allwords-done"],
+    scale: ['#FFE6E6', '#4D0000'],
+//    normalizeFunction: Math.log
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_features["s24_allwords"][code] || "N/A")+')');
+    }
+    });
+
+   
+   /* Citizen adjectives */
+   
+
+    $('#citizenadj-s24').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_features["s24_citizenadj-done"],
+    scale: ['#FFE6E6', '#4D0000'],
+//    normalizeFunction: Math.log
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_features["s24_citizenadj"][code] || "N/A")+')');
+    }
+    });
+
+    /* Sentiment adjectives - all */
+   
+ /*   $('#sentadj-s24').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_features["s24_sentadj-done"],
+    scale: ['#FFE6E6', '#4D0000'],
+//    normalizeFunction: Math.log
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_features["s24_sentadj"][code] || "N/A")+')');
+    }
+    });
+*/
+
+    /* Sentiment adjectives citizen */
+
+    $('#sentadjcitizen-s24').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_features["s24_sentadjcitizen-done"],
+    scale: ['#FFE6E6', '#4D0000'],
+//    normalizeFunction: Math.log
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_features["s24_sentadjcitizen"][code] || "N/A")+')');
+    }
+    });
+
+    $('#sentadjcitizen-s24-sentiment').vectorMap({
+    map: 'world_mill',
+    series: {
+    regions: [{
+    values: data_features["s24_sentadjcitizen-sentiment"],
+    scale: ['#FF0000', '#00FF00'],
+    normalizeFunction: 'linear',
+    min: 0.0,
+    max: 1.0
+    }]
+    },
+    onRegionTipShow: function(e, el, code){
+    el.html(el.html()+' ('+(data_features["s24_sentadjcitizen-sentiment"][code] || "N/A")+')');
+    }
+    });
+
+  </script>
+</body>
+</html>
+
