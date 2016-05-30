@@ -23,6 +23,17 @@ def data_iterator(f,country,vocabulary,max_count=500000):
 
     counter=0
     for comm,sent in cu.read_conllu(f):
+        
+        words=[]
+        for line in sent:
+            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary:# or line[cu.CPOS]!="ADJ":
+                continue # remove nationality words
+            else:
+                words.append(line[cu.LEMMA])
+
+        if not words: # no adjectives in this sentence
+            continue
+        
         if comment_line in comm: # this is positive example
             if counter%1000==0:
                 dev_labels.append(1)
@@ -33,15 +44,7 @@ def data_iterator(f,country,vocabulary,max_count=500000):
                 dev_labels.append(0)
             else:
                 labels.append(0)
-        words=[]
-        for line in sent:
-            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary:# or line[cu.CPOS]!="ADJ":
-                continue # remove nationality words
-            else:
-                words.append(line[cu.LEMMA])
 
-        if not words: # no adjectives in this sentence
-            words.append("EMPTY")
         stext=" ".join(words)
         if counter%1000==0:
             dev_texts.append(stext)
@@ -62,61 +65,42 @@ try:
 except:
     cutoff=5
 
-print("Country code:", country_code, "Cutoff value:", cutoff, sep=" ")
+print("Country code:", country_code, "Cutoff value:", cutoff, sep=" ", file=sys.stderr)
 
 with open("nations_ready.txt","rt",encoding="utf-8") as f:
     vocab,country_codes=read_vocabulary(f)
 
 iterator=data_iterator(sys.stdin,country_code,vocab,max_count=0)
 
-#vectorizer=sklearn.feature_extraction.text.TfidfVectorizer(tokenizer=tokenizer,use_idf=True) #,max_df=0.9
+vectorizer=sklearn.feature_extraction.text.TfidfVectorizer(tokenizer=tokenizer,max_df=0.7,sublinear_tf=True)
 
-vectorizer=sklearn.feature_extraction.text.CountVectorizer(tokenizer=tokenizer,min_df=cutoff) #,max_df=0.9,min_df=0.01
+#vectorizer=sklearn.feature_extraction.text.CountVectorizer(tokenizer=tokenizer,min_df=cutoff) #,max_df=0.9,min_df=0.01
 d=vectorizer.fit_transform(iterator)
 
-classifier=LinearSVC(penalty="l1",C=0.1,dual=False)#,class_weight="balanced")
-classifier.fit(d,labels)
+c_values=[0.001,0.01,0.1,1]
 
-print(len(dev_labels),dev_labels.count(0),dev_labels.count(1),sep=" ")
-print(classification_report(classifier.predict(vectorizer.transform(dev_texts)),dev_labels))
+for c in np.arange(0.001,0.1,0.001):
+    classifier = LinearSVC(penalty="l1",C=c,dual=False,class_weight="balanced")
 
-print("Non-zero features:",np.count_nonzero(classifier.coef_),sep=" ")
-f_names=vectorizer.get_feature_names()
-sorted_by_weight=sorted(zip(classifier.coef_[0],f_names))
-#for f_weight,f_name in sorted_by_weight[-30:]:
-for f_weight,f_name in sorted_by_weight:
-    print(f_name, f_weight, sep="\t")
-#print("------------------------")
-#for f_weight,f_name in sorted_by_weight[:30]:
-#    print(f_name, f_weight, sep="\t")
+    classifier.fit(d,labels)
 
+#    print(len(dev_labels),dev_labels.count(0),dev_labels.count(1),sep=" ")
+#    print(classification_report(classifier.predict(vectorizer.transform(dev_texts)),dev_labels))
 
+    non_zero=np.count_nonzero(classifier.coef_[classifier.coef_ > 0]) # count only positive features
 
-#fnames=vectorizer.get_feature_names()
-#print len(fnames),fnames[:10]
+#    print("Non-zero positive features:",non_zero)
+    
 
-#dense = d.todense()
-#document = dense[0].tolist()[0]
-#scores = [pair for pair in zip(range(0, len(document)), document) if pair[1] > 0]
-#print len(scores)
-#top_n = sorted(scores, key=lambda t: t[1] * -1)[:5]
-#for w,sc in top_n:
-#    print fnames[w],sc
-
-#indices = np.argsort(vectorizer.idf_)[::-1]
+    if non_zero>30: # save and die
+        print(country_code)
+        print("# c value:",c)
+        print("# Non-zero positive features:",non_zero)
+        f_names=vectorizer.get_feature_names()
+        sorted_by_weight=sorted(zip(classifier.coef_[0],f_names), reverse=True)
+        for f_weight,f_name in sorted_by_weight[:non_zero]:
+            print(f_name, f_weight, sep="\t")
+        break
 
 
-#top_features = [fnames[i] for i in indices[:50]]
-#print top_features
 
-
-#devel_iterator=data_iterator(codecs.getreader(u"utf-8")(gzip.open(u"nationality_data_pb_old.conllu.gz")))
-#for text in devel_iterator:
-#    print d.transform(text)
-#    sys.exit()
-
-##print d[:10]
-##print "documents x features", d.shape
-#fnames=tfidf_v.get_feature_names()
-##for feature_id in range(1,500,50):
-##    print feature_id,fnames[feature_id],d[feature_id]
