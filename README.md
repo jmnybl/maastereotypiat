@@ -9,6 +9,8 @@ zcat nationality_data_pb.conllu.gz | python3 grep_country_code.py SE | less
 
 zcat nationality_data_s24.conllu.gz | python3 significant_features.py SE
 
+zcat nationality_data_s24.conllu.gz | python3 significant_features.py SE ADJ,VERB
+
 zcat nationality_data_s24.conllu.gz | python3 grep_country_code.py GR | python3 grep_type.py citizen | less
 
 zcat nationality_data_s24.conllu.gz | python3 grep_type.py citizen | python3 significant_features.py GR

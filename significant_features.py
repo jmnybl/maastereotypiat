@@ -16,7 +16,7 @@ dev_texts=[]
 
 labels=[]
 
-def data_iterator(f,country,vocabulary,max_count=500000):
+def data_iterator(f,country,vocabulary,cpos=None,max_count=500000):
     global labels,dev_labels,dev_texts
 
     comment_line="# nationality: "+country
@@ -26,7 +26,9 @@ def data_iterator(f,country,vocabulary,max_count=500000):
         
         words=[]
         for line in sent:
-            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary:# or line[cu.CPOS]!="ADJ":
+            if cpos is not None and line[cu.CPOS] not in cpos:
+                continue
+            if line[cu.FORM] in vocabulary or line[cu.LEMMA].replace("#","") in vocabulary:
                 continue # remove nationality words
             else:
                 words.append(line[cu.LEMMA])
@@ -61,25 +63,27 @@ def tokenizer(txt):
 
 country_code=sys.argv[1]
 try:
-    cutoff=int(sys.argv[2])
+    cpos=sys.argv[2].split(",")
 except:
-    cutoff=5
+    cpos=None
+if cpos:
+    for p in cpos:
+        assert p in cu.allowed_pos
 
-print("Country code:", country_code, "Cutoff value:", cutoff, sep=" ", file=sys.stderr)
+print("Country code:", country_code, "CPOS:", cpos, sep=" ", file=sys.stderr)
 
 with open("nations_ready.txt","rt",encoding="utf-8") as f:
     vocab,country_codes=read_vocabulary(f)
 
-iterator=data_iterator(sys.stdin,country_code,vocab,max_count=0)
+iterator=data_iterator(sys.stdin,country_code,vocab,cpos=cpos,max_count=0)
 
-vectorizer=sklearn.feature_extraction.text.TfidfVectorizer(tokenizer=tokenizer,max_df=0.7,sublinear_tf=True)
+vectorizer=sklearn.feature_extraction.text.TfidfVectorizer(tokenizer=tokenizer,max_df=0.3,sublinear_tf=True,use_idf=False)
 
-#vectorizer=sklearn.feature_extraction.text.CountVectorizer(tokenizer=tokenizer,min_df=cutoff) #,max_df=0.9,min_df=0.01
 d=vectorizer.fit_transform(iterator)
 
-c_values=[0.001,0.01,0.1,1]
 
-for c in np.arange(0.001,0.1,0.001):
+
+for c in np.arange(0.00001,0.1,0.00005):
     classifier = LinearSVC(penalty="l1",C=c,dual=False,class_weight="balanced")
 
     classifier.fit(d,labels)
@@ -92,10 +96,8 @@ for c in np.arange(0.001,0.1,0.001):
 #    print("Non-zero positive features:",non_zero)
     
 
-    if non_zero>30: # save and die
-        print(country_code)
-        print("# c value:",c)
-        print("# Non-zero positive features:",non_zero)
+    if non_zero>100: # save and die
+        print(country_code,"# c value:",c,"# Non-zero positive features:",non_zero)
         f_names=vectorizer.get_feature_names()
         sorted_by_weight=sorted(zip(classifier.coef_[0],f_names), reverse=True)
         for f_weight,f_name in sorted_by_weight[:non_zero]:

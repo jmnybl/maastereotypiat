@@ -19,6 +19,8 @@ def country_or_citizen(line):
         return "citizen"
     if "lainen" in line[cu.LEMMA] or "laiset" in line[cu.LEMMA] or "läinen" in line[cu.LEMMA] or "läiset" in line[cu.LEMMA]:
         return "citizen"
+    if "lainen" in line[cu.FORM] or "laiset" in line[cu.FORM] or "läinen" in line[cu.FORM] or "läiset" in line[cu.FORM]:
+        return "citizen"
     return "country"
 
 
